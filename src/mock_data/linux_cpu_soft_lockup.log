@@ -1,0 +1,9 @@
+# Source: https://github.com/falcosecurity/falco/issues/3637
+# Linux kernel watchdog soft lockup excerpt
+[REDACTED DATE] [REDACTED_MACHINE] kernel: [54707.204594] watchdog: BUG: soft lockup - CPU#4 stuck for 27s! [falco:20765]
+[REDACTED DATE] [REDACTED_MACHINE] kernel: [54707.208746] Modules linked in: xt_set ip_set_hash_ipport xt_recent xt_statistic xt_nfacct ipt_REJECT nf_reject_ipv4 xt_multiport xt_nat
+nfnetlink_acct ipt_rpfilter iptable_raw ip_set_hash_net ip_set_hash_ip ip_set wireguard curve25519_x86_64 libcurve25519_generic libchacha20poly1305 chacha_x86_64 libchacha poly1305_x86_64 ip6_udp_tunnel udp_tunne
+l xt_MASQUERADE xt_addrtype nf_tables ip6table_filter ip6table_nat ip6table_mangle ip6_tables xt_comment iptable_nat nf_nat iptable_mangle ebtable_nat ebtables br_netfilter xt_owner iptable_security xt_conntrack
+iptable_filter ip_tables overlay cfg80211 xsk_diag nf_conntrack_netlink nfnetlink mlx5_ib ib_uverbs ib_core mlx5_core mlxfw intel_rapl_msr intel_rapl_common skx_edac_common nfit kvm_intel kvm irqbypass hyperv_fb
+evdev mousedev sch_fq_codel fuse configfs hid_generic hv_storvsc crc32c_intel scsi_transport_fc hid_hyperv hid hv_netvsc hv_utils hyperv_keyboard hv_balloon nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 autofs4
+[REDACTED DATE] [REDACTED_MACHINE] kernel: [54707.208797] CPU: 4 PID: 20765 Comm: falco Kdump: loaded Not tainted 5.15.182.1-1.cm2 #1

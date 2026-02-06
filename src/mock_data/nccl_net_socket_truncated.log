@@ -1,0 +1,5 @@
+# Source: https://github.com/NVIDIA/nccl/issues/268
+# NCCL NET/Socket message truncated warning
+hvd1:2918:3333 [0] external/nccl_archive/src/transport/net_socket.cc:200 NCCL WARN NET/Socket : message truncated : receiving 696320 bytes instead of 32768
+hvd1:2918:3332 [0] NCCL INFO Ring 00 : 1 -> 0 [receive] via NET/Socket/0
+hvd1:2918:3332 [0] NCCL INFO Ring 00 : 0 -> 1 [send] via NET/Socket/0

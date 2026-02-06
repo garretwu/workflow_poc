@@ -1,0 +1,5 @@
+# Source: https://github.com/huggingface/trl/issues/4149
+# CUDA runtime error indicating ECC failure
+[rank1]: RuntimeError: CUDA error: uncorrectable ECC error encountered
+[rank1]: CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+[rank1]: For debugging consider passing CUDA_LAUNCH_BLOCKING=1

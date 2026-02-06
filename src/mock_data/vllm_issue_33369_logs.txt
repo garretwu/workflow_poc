@@ -1,0 +1,32 @@
+# Source: https://github.com/vllm-project/vllm/issues/33369
+# Excerpted log lines (vLLM 0.15.0 container hang)
+
+DEBUG 01-29 13:15:31 [plugins/__init__.py:35] No plugins for group vllm.platform_plugins found.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:36] Checking if TPU platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:55] TPU platform is not available because: No module named 'libtpu'
+DEBUG 01-29 13:15:31 [platforms/__init__.py:61] Checking if CUDA platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:84] Confirmed CUDA platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:112] Checking if ROCm platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:126] ROCm platform is not available because: No module named 'amdsmi'
+DEBUG 01-29 13:15:31 [platforms/__init__.py:133] Checking if XPU platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:153] XPU platform is not available because: No module named 'intel_extension_for_pytorch'
+DEBUG 01-29 13:15:31 [platforms/__init__.py:160] Checking if CPU platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:61] Checking if CUDA platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:84] Confirmed CUDA platform is available.
+DEBUG 01-29 13:15:31 [platforms/__init__.py:225] Automatically detected platform cuda.
+DEBUG 01-29 13:15:36 [utils/import_utils.py:74] Loading module triton_kernels from /usr/local/lib/python3.12/dist-packages/vllm/third_party/triton_kernels/__init__.py.
+DEBUG 01-29 13:15:37 [entrypoints/utils.py:181] Setting VLLM_WORKER_MULTIPROC_METHOD to 'spawn'
+DEBUG 01-29 13:15:37 [plugins/__init__.py:43] Available plugins for group vllm.general_plugins:
+DEBUG 01-29 13:15:37 [plugins/__init__.py:45] - lora_filesystem_resolver -> vllm.plugins.lora_resolvers.filesystem_resolver:register_filesystem_resolver
+DEBUG 01-29 13:15:37 [plugins/__init__.py:48] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+WARNING 01-29 13:15:37 [utils/argparse_utils.py:195] With `vllm serve`, you should provide the model as a positional argument or in a config file instead of via the `--model` option. The `--model` option will be removed in v0.13.
+(APIServer pid=1) INFO 01-29 13:15:37 [entrypoints/utils.py:261] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'api_server_count': 1, 'model': 'openai/gpt-oss-120b', 'quantization': 'mxfp4', 'served_model_name': ['vllm-gpt-oss'], 'tensor_parallel_size': 2, 'gpu_memory_utilization': 0.55, 'speculative_config': {'model': 'nvidia/gpt-oss-120b-Eagle3-throughput', 'method': 'eagle3', 'num_speculative_tokens': 1}}
+(APIServer pid=1) DEBUG 01-29 13:15:38 [model_executor/models/registry.py:671] Cached model info file for class vllm.model_executor.models.gpt_oss.GptOssForCausalLM not found
+(APIServer pid=1) DEBUG 01-29 13:15:38 [model_executor/models/registry.py:731] Cache model info for class vllm.model_executor.models.gpt_oss.GptOssForCausalLM miss. Loading model instead.
+(APIServer pid=1) DEBUG 01-29 13:15:42 [model_executor/models/registry.py:741] Loaded model info for class vllm.model_executor.models.gpt_oss.GptOssForCausalLM
+(APIServer pid=1) INFO 01-29 13:15:44 [config/model.py:1561] Using max model len 131072
+(APIServer pid=1) INFO 01-29 13:15:49 [config/scheduler.py:226] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=1) INFO 01-29 13:15:49 [config/vllm.py:624] Asynchronous scheduling is enabled.
+(APIServer pid=1) DEBUG 01-29 13:16:04 [v1/engine/utils.py:982] Waiting for 1 local, 0 remote core engine proc(s) to start.
+(APIServer pid=1) DEBUG 01-29 13:16:14 [v1/engine/utils.py:982] Waiting for 1 local, 0 remote core engine proc(s) to start.
+(APIServer pid=1) DEBUG 01-29 13:16:24 [v1/engine/utils.py:982] Waiting for 1 local, 0 remote core engine proc(s) to start.

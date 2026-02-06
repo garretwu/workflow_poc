@@ -59,7 +59,13 @@ async def generate_report(
     fix_plan: Dict[str, Any],
     validation: Dict[str, Any],
     output_path: str,
+    agent_trace: list[dict[str, Any]] | None = None,
 ) -> Dict[str, Any]:
+    applied_config = post.get("config")
+    if not applied_config:
+        applied_config = dict(pre.get("config", {}))
+        applied_config.update(fix_plan.get("config_updates", {}))
+    post_metrics = post.get("metrics") or pre["metrics"]
     report = {
         "scenario": scenario,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -71,7 +77,7 @@ async def generate_report(
         },
         "metrics": {
             "pre": pre["metrics"],
-            "post": post["metrics"],
+            "post": post_metrics,
             "deltas": validation["deltas"],
         },
         "evidence": {
@@ -80,14 +86,11 @@ async def generate_report(
         },
         "recommendations": fix_plan["recommended_changes"],
         "rationale": fix_plan["rationale"],
-        "applied_config": post["config"],
+        "applied_config": applied_config,
+        "agent_trace": agent_trace or [],
         "timeline": [
             "collect_pre_telemetry",
-            "analyze_latency",
-            "propose_fix",
-            "apply_fix_simulation",
-            "collect_post_telemetry",
-            "validate_improvement",
+            "agent_step",
             "generate_report",
         ],
         "report_path": output_path,

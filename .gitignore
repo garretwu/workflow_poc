@@ -2,3 +2,5 @@
 __pycache__/
 reports/
 *.pyc
+gui/node_modules/
+gui/dist/

@@ -1,5 +1,7 @@
 import json
 
+from langchain_core.messages import ToolMessage
+
 from activities import agent as agent_activity
 
 
@@ -92,3 +94,23 @@ def test_validate_improvement_detects_improvement():
 
     assert result["improved"] is True
     assert "p95_latency_drop" in result["deltas"]
+
+
+def test_sqlite_callback_handler_serializes_tool_message(monkeypatch):
+    captured = []
+
+    def _append_live_trace(workflow_id, trace_item):
+        json.dumps(trace_item)
+        captured.append((workflow_id, trace_item))
+
+    monkeypatch.setattr(agent_activity.store, "append_live_trace", _append_live_trace)
+
+    handler = agent_activity.SQLiteCallbackHandler("wf-123")
+    output = ToolMessage(content="ok", tool_call_id="call-1", name="fetch_config")
+
+    handler.on_tool_end(output, name="fetch_config")
+
+    assert captured
+    assert captured[0][0] == "wf-123"
+    assert captured[0][1]["output"]["type"] == "tool"
+    assert captured[0][1]["output"]["content"] == "ok"

@@ -127,6 +127,30 @@ Run Detail Schema (draft)
 - Motion: staggered reveal for timeline nodes, smooth expand/collapse for tool calls.
 - Layout: asymmetrical two-column detail view (timeline + trace on left, LLM + metrics on right).
 
+## Wireframe (v1)
+Runs list + detail layout
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Sidebar (Runs) │                          Run Detail                         │
+│ ────────────── │ ┌──────────── Summary ────────────┐  ┌──────────────┐       │
+│ [Run 1]        │ │ Scenario, Status, Root Cause    │  │ Metrics      │       │
+│ [Run 2]        │ └─────────────────────────────────┘  └──────────────┘       │
+│ [Run 3]        │ ┌──────── Timeline ────────┐  ┌──── Thinking Flow ────┐      │
+│               │ │ collect_pre_telemetry    │  │ Step 1: thinking text │      │
+│               │ │ agent_step               │  │ Step 2: thinking text │      │
+│               │ │ generate_report          │  └──────────────────────┘      │
+│               │ └──────────────────────────┘  ┌──── LLM Usage ───────┐      │
+│               │ ┌──────── Agent Trace ──────┐  │ tokens, stop_reason │      │
+│               │ │ tool calls + results      │  └──────────────────────┘      │
+│               │ └───────────────────────────┘                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Thinking flow presentation
+- Chronological list of thinking blocks per LLM call.
+- Each block shows token stats + stop_reason.
+- Expand/collapse for long blocks.
+
 ## Error Handling
 - If report not present, show "in progress" and fetch latest trace from Temporal.
 - If agent_trace missing, show fallback hint with raw activity outputs.

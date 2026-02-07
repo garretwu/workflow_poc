@@ -15,6 +15,7 @@ with workflow.unsafe.imports_passed_through():
 class LatencyWorkflow:
     @workflow.run
     async def run(self, scenario: str = "default") -> Dict[str, Any]:
+        workflow_id = workflow.info().workflow_id
         pre = await workflow.execute_activity(
             collect_telemetry,
             args=[scenario, "pre", None],
@@ -22,8 +23,8 @@ class LatencyWorkflow:
         )
         agent_result = await workflow.execute_activity(
             agent_step,
-            args=[scenario, pre],
-            start_to_close_timeout=timedelta(seconds=60),
+            args=[scenario, pre, workflow_id],
+            start_to_close_timeout=timedelta(seconds=180),
         )
         diagnosis = agent_result["diagnosis"]
         fix_plan = agent_result["fix_plan"]
@@ -40,6 +41,7 @@ class LatencyWorkflow:
                 validation,
                 "./reports/latency_report.json",
                 agent_result.get("agent_trace", []),
+                workflow_id,
             ],
             start_to_close_timeout=timedelta(seconds=5),
         )

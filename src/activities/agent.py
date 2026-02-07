@@ -10,7 +10,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from langchain import agents
-from langchain_core.tools import Tool
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.tools import BaseTool, Tool
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -18,12 +19,86 @@ from pydantic import PrivateAttr
 from temporalio import activity
 
 from activities.telemetry import _apply_scenario, _load_snapshot
+from gui import store
+
+
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, BaseMessage):
+        payload: Dict[str, Any] = {
+            "type": value.type,
+            "content": _json_safe(value.content),
+        }
+        name = getattr(value, "name", None)
+        if name is not None:
+            payload["name"] = name
+        tool_call_id = getattr(value, "tool_call_id", None)
+        if tool_call_id is not None:
+            payload["tool_call_id"] = tool_call_id
+        additional_kwargs = getattr(value, "additional_kwargs", None)
+        if additional_kwargs:
+            payload["additional_kwargs"] = _json_safe(additional_kwargs)
+        return payload
+    if hasattr(value, "model_dump"):
+        try:
+            return _json_safe(value.model_dump())
+        except Exception:
+            pass
+    if hasattr(value, "dict"):
+        try:
+            return _json_safe(value.dict())
+        except Exception:
+            pass
+    if hasattr(value, "__dict__"):
+        try:
+            return _json_safe(vars(value))
+        except Exception:
+            pass
+    return str(value)
+
+
+class SQLiteCallbackHandler(BaseCallbackHandler):
+    def __init__(self, workflow_id: str):
+        self.workflow_id = workflow_id
+
+    def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs: Any) -> None:
+        store.append_live_trace(
+            self.workflow_id,
+            {
+                "tool": serialized.get("name"),
+                "input": _json_safe(_parse_tool_input(input_str)),
+                "log": "tool_call",
+                "output": None,
+            },
+        )
+
+    def on_tool_end(self, output: Any, **kwargs: Any) -> None:
+        # We don't easily know WHICH tool ended here without tracking IDs, 
+        # but for this POC we can just log the result.
+        # Ideally we'd link it to the last tool start.
+        # Using name from kwargs if available? kwargs usually has 'name'.
+        name = str(kwargs.get("name", "unknown_tool"))
+        store.append_live_trace(
+            self.workflow_id,
+            {
+                "tool": name,
+                "input": None,
+                "log": "tool_result",
+                "output": _json_safe(output),
+            },
+        )
 
 
 class MinimaxChatModel(BaseChatModel):
     model: str
     api_key: str
     base_url: str
+    workflow_id: str | None = None
     temperature: float = 0.2
     max_tokens: int = 1024
     timeout_s: int = 60
@@ -156,18 +231,47 @@ class MinimaxChatModel(BaseChatModel):
         self._last_response = data
         if os.getenv("MINIMAX_TRACE") == "1":
             print("MINIMAX TRACE response:", json.dumps(data, indent=2))
+        thinking_text = None
+        output_text = None
+        content_blocks = data.get("content") if isinstance(data, dict) else None
+        if isinstance(content_blocks, list):
+            thinking_parts = [
+                block.get("thinking")
+                for block in content_blocks
+                if isinstance(block, dict) and block.get("type") == "thinking"
+            ]
+            thinking_text = "\n".join([part for part in thinking_parts if part]) or None
+            text_parts = [
+                block.get("text")
+                for block in content_blocks
+                if isinstance(block, dict) and block.get("type") == "text"
+            ]
+            output_text = "".join([part for part in text_parts if part]) or None
         usage = data.get("usage", {}) if isinstance(data, dict) else {}
-        self._call_stats.append(
-            {
-                "model": data.get("model", self.model) if isinstance(data, dict) else self.model,
-                "endpoint": endpoint,
-                "input_tokens": usage.get("input_tokens"),
-                "output_tokens": usage.get("output_tokens"),
-                "stop_reason": data.get("stop_reason"),
-                "message_count": len(payload.get("messages", [])),
-                "payload_chars": len(json.dumps(payload)),
-            }
-        )
+        stat = {
+            "model": data.get("model", self.model) if isinstance(data, dict) else self.model,
+            "endpoint": endpoint,
+            "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"),
+            "stop_reason": data.get("stop_reason"),
+            "message_count": len(payload.get("messages", [])),
+            "payload_chars": len(json.dumps(payload)),
+            "output_chars": len(output_text) if output_text else None,
+            "thinking": thinking_text,
+        }
+        self._call_stats.append(stat)
+
+        if self.workflow_id:
+            store.append_live_trace(
+                self.workflow_id,
+                {
+                    "tool": "llm_call",
+                    "input": {"index": len(self._call_stats)},
+                    "log": "llm_usage",
+                    "output": stat,
+                },
+            )
+
         return data
 
     def _generate(
@@ -283,6 +387,30 @@ class MinimaxChatModel(BaseChatModel):
         if role == "ai":
             return "assistant"
         return role
+
+
+class MultiArgTool(Tool):
+    def _to_args_and_kwargs(
+        self, tool_input: str | dict | list | tuple, tool_call_id: str | None
+    ) -> tuple[tuple, dict]:
+        if isinstance(tool_input, (list, tuple)):
+            if len(tool_input) == 1:
+                return (tool_input[0],), {}
+            return (list(tool_input),), {}
+
+        args, kwargs = BaseTool._to_args_and_kwargs(self, tool_input, tool_call_id)
+        if len(args) + len(kwargs) == 1:
+            if args:
+                return args, {}
+            return (list(kwargs.values())[0],), {}
+        if kwargs and not args:
+            return (kwargs,), {}
+        if args and not kwargs:
+            return (list(args),), {}
+        if args and kwargs:
+            merged = {"_args": list(args), **kwargs}
+            return (merged,), {}
+        return (), {}
 
 
 def _load_mock_lines(file_name: str) -> List[str]:
@@ -936,7 +1064,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
         return json.dumps(result, indent=2)
 
     return [
-        Tool(
+        MultiArgTool(
             name="fetch_vllm_logs",
             func=fetch_vllm_logs,
             description=(
@@ -945,7 +1073,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
                 "Use topics like 'nccl' or 'network' to include NCCL-related logs."
             ),
         ),
-        Tool(
+        MultiArgTool(
             name="fetch_system_logs",
             func=fetch_system_logs,
             description=(
@@ -954,27 +1082,27 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
                 "Use topics like 'gpu' or 'ecc' to include driver/ECC lines."
             ),
         ),
-        Tool(
+        MultiArgTool(
             name="fetch_prometheus_metrics",
             func=fetch_prometheus_metrics,
             description="Fetch Prometheus /metrics text. Input JSON: {\"endpoint\": str}.",
         ),
-        Tool(
+        MultiArgTool(
             name="fetch_config",
             func=fetch_config,
             description="Fetch current model/runtime config. Input JSON: {}.",
         ),
-        Tool(
+        MultiArgTool(
             name="fetch_runtime_state",
             func=fetch_runtime_state,
             description="Fetch runtime queue/backlog state. Input JSON: {}.",
         ),
-        Tool(
+        MultiArgTool(
             name="fetch_gpu_stats",
             func=fetch_gpu_stats,
             description="Fetch GPU utilization and memory stats. Input JSON: {}.",
         ),
-        Tool(
+        MultiArgTool(
             name="analyze_metrics",
             func=analyze_metrics,
             description=(
@@ -982,7 +1110,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
                 "{\"pre_telemetry\": dict, \"prometheus_samples\": list}."
             ),
         ),
-        Tool(
+        MultiArgTool(
             name="apply_fix_simulation",
             func=apply_fix_simulation,
             description=(
@@ -990,7 +1118,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
                 "{\"current_config\": dict, \"fix_plan\": dict}."
             ),
         ),
-        Tool(
+        MultiArgTool(
             name="collect_post_telemetry",
             func=collect_post_telemetry,
             description=(
@@ -998,7 +1126,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
                 "{\"scenario\": str, \"updated_config\": dict}."
             ),
         ),
-        Tool(
+        MultiArgTool(
             name="validate_improvement",
             func=validate_improvement,
             description=(
@@ -1009,7 +1137,7 @@ def _build_tools(scenario: str, pre: Dict[str, Any]) -> List[Tool]:
     ]
 
 
-def _build_minimax_model() -> MinimaxChatModel:
+def _build_minimax_model(workflow_id: str | None = None) -> MinimaxChatModel:
     api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN") or ""
     if not api_key:
         raise RuntimeError("MINIMAX API key not configured (ANTHROPIC_AUTH_TOKEN missing).")
@@ -1022,14 +1150,15 @@ def _build_minimax_model() -> MinimaxChatModel:
         model=model,
         api_key=api_key,
         base_url=base_url,
+        workflow_id=workflow_id,
         temperature=float(os.getenv("MINIMAX_TEMPERATURE", "0.2")),
         max_tokens=int(os.getenv("MINIMAX_MAX_TOKENS", "4096")),
         timeout_s=int(os.getenv("MINIMAX_TIMEOUT_S", "60")),
     )
 
 
-def _build_agent_executor(scenario: str, pre: Dict[str, Any]) -> tuple[Any, MinimaxChatModel]:
-    llm = _build_minimax_model()
+def _build_agent_executor(scenario: str, pre: Dict[str, Any], workflow_id: str | None = None) -> tuple[Any, MinimaxChatModel]:
+    llm = _build_minimax_model(workflow_id)
     tools = _build_tools(scenario, pre)
     agent_executor = agents.create_agent(
         model=llm,
@@ -1067,13 +1196,17 @@ def _format_agent_trace_from_messages(messages: List[Any]) -> List[Dict[str, Any
 
 
 @activity.defn
-async def agent_step(scenario: str, pre: Dict[str, Any]) -> Dict[str, Any]:
-    agent_executor, llm = _build_agent_executor(scenario, pre)
+async def agent_step(scenario: str, pre: Dict[str, Any], workflow_id: str | None = None) -> Dict[str, Any]:
+    agent_executor, llm = _build_agent_executor(scenario, pre, workflow_id)
     prompt = _build_agent_prompt(scenario, pre)
+    
+    callbacks = [SQLiteCallbackHandler(workflow_id)] if workflow_id else []
+    
     try:
         raw_result = await asyncio.to_thread(
             agent_executor.invoke,
             {"messages": [{"role": "user", "content": prompt}]},
+            config={"callbacks": callbacks}
         )
     except Exception as exc:
         fallback_trace = [

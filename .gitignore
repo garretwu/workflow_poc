@@ -4,3 +4,4 @@ reports/
 *.pyc
 gui/node_modules/
 gui/dist/
+verify_full_system.py

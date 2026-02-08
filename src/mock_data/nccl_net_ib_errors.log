@@ -1,0 +1,12 @@
+# Source: https://github.com/deepspeedai/DeepSpeed/issues/2931
+# NCCL network/communication errors (IB and socket)
+PHLRR4036:24141:24296 [2] ib_plugin.c:978 NCCL WARN NET/IB : Got completion from peer 10.226.98.98<48598> with error 12, opcode 0, len 0, vendor err 129
+[E ProcessGroupNCCL.cpp:456] Some NCCL operations have failed or timed out. Due to the asynchronous nature of CUDA kernels, subsequent GPU operations might run on corrupted/incomplete data.
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  NCCL error: unhandled system error, NCCL version 2.14.3
+ncclSystemError: System call (e.g. socket, malloc) or external library call failed or device error. 
+Last error:
+NET/IB : Got completion from peer 10.226.98.98<48598> with error 12, opcode 0, len 0, vendor err 129
+
+PHLRR3088:25515:25633 [2] socket.c:505 NCCL WARN Net : Call to recv from 10.226.99.46<45256> failed : Connection reset by peer
+[E ProcessGroupNCCL.cpp:455] Some NCCL operations have failed or timed out. Due to the asynchronous nature of CUDA kernels, subsequent GPU operations might run on corrupted/incomplete data. To avoid this inconsistency, we are taking the entire process down.

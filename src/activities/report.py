@@ -7,6 +7,8 @@ from typing import Any, Dict
 
 from temporalio import activity
 
+from gui import store
+
 
 def _percent_drop(before: float, after: float) -> float | None:
     if before == 0:
@@ -59,10 +61,19 @@ async def generate_report(
     fix_plan: Dict[str, Any],
     validation: Dict[str, Any],
     output_path: str,
+    agent_trace: list[dict[str, Any]] | None = None,
+    workflow_id: str | None = None,
 ) -> Dict[str, Any]:
+    applied_config = post.get("config")
+    if not applied_config:
+        applied_config = dict(pre.get("config", {}))
+        applied_config.update(fix_plan.get("config_updates", {}))
+    post_metrics = post.get("metrics") or pre["metrics"]
     report = {
+        "workflow_id": workflow_id,
         "scenario": scenario,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "COMPLETED",
         "summary": {
             "issue": f"p99 latency spike to {pre['metrics']['latency_ms']['p99']}ms",
             "root_causes": [cause["label"] for cause in diagnosis["root_causes"]],
@@ -71,7 +82,7 @@ async def generate_report(
         },
         "metrics": {
             "pre": pre["metrics"],
-            "post": post["metrics"],
+            "post": post_metrics,
             "deltas": validation["deltas"],
         },
         "evidence": {
@@ -80,14 +91,11 @@ async def generate_report(
         },
         "recommendations": fix_plan["recommended_changes"],
         "rationale": fix_plan["rationale"],
-        "applied_config": post["config"],
+        "applied_config": applied_config,
+        "agent_trace": agent_trace or [],
         "timeline": [
             "collect_pre_telemetry",
-            "analyze_latency",
-            "propose_fix",
-            "apply_fix_simulation",
-            "collect_post_telemetry",
-            "validate_improvement",
+            "agent_step",
             "generate_report",
         ],
         "report_path": output_path,
@@ -98,5 +106,8 @@ async def generate_report(
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2)
+
+    if workflow_id:
+        store.upsert_report(report)
 
     return report

@@ -1,0 +1,11 @@
+# Source: https://github.com/githedgehog/gateway/issues/283
+# Linux kernel OOM killer excerpt
+Jan 13 12:12:26 gateway-1 kernel: bgpd invoked oom-killer: gfp_mask=0x140cca(GFP_HIGHUSER_MOVABLE|__GFP_COMP), order=0, oom_score_adj=1000
+Jan 13 12:12:26 gateway-1 kernel:  oom_kill_process.cold+0x8/0x8d
+Jan 13 12:12:26 gateway-1 kernel: [  pid  ]   uid  tgid total_vm      rss rss_anon rss_file rss_shmem pgtables_bytes swapents oom_score_adj name
+Jan 13 12:12:26 gateway-1 kernel: oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=cri-containerd-6c6baea31578ded9b2fbb696ffeecc142b8fd76c457b5f6a78c6f2275ac5dc3d.scope,mems_allowed=0,global_oom,task_memcg=/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podfd1bee17_c7dc_47e7_a65a_a98b2e9d6436.slice/cri-containerd-6c6baea31578ded9b2fbb696ffeecc142b8fd76c457b5f6a78c6f2275ac5dc3d.scope,task=zebra,pid=9709,uid=100
+Jan 13 12:12:26 gateway-1 kernel: Out of memory: Killed process 9709 (zebra) total-vm:5903264kB, anon-rss:5433564kB, file-rss:64kB, shmem-rss:0kB, UID:100 pgtables:10768kB oom_score_adj:1000
+Jan 13 12:12:26 gateway-1 kernel: Tasks in /kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podfd1bee17_c7dc_47e7_a65a_a98b2e9d6436.slice/cri-containerd-6c6baea31578ded9b2fbb696ffeecc142b8fd76c457b5f6a78c6f2275ac5dc3d.scope are going to be killed due to memory.oom.group set
+Jan 13 12:12:26 gateway-1 kernel: Out of memory: Killed process 9639 (tini) total-vm:2656kB, anon-rss:0kB, file-rss:240kB, shmem-rss:0kB, UID:0 pgtables:44kB oom_score_adj:1000
+Jan 13 12:12:26 gateway-1 kernel: Out of memory: Killed process 9666 (docker-start) total-vm:4828kB, anon-rss:384kB, file-rss:108kB, shmem-rss:0kB, UID:0 pgtables:48kB oom_score_adj:1000
+Jan 13 12:12:26 gateway-1 kernel: Out of memory: Killed process 9723 (bgpd) total-vm:256132kB, anon-rss:20956kB, file-rss:356kB, shmem-rss:0kB, UID:100 pgtables:124kB oom_score_adj:1000

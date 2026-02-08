@@ -7,9 +7,8 @@ import uuid
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from activities.analysis import analyze_latency
-from activities.fix import apply_fix_simulation, propose_fix
-from activities.report import generate_report, validate_improvement
+from activities.agent import agent_step
+from activities.report import generate_report
 from activities.telemetry import collect_telemetry
 from workflows.latency_workflow import LatencyWorkflow
 
@@ -62,10 +61,7 @@ async def main() -> None:
         workflows=[LatencyWorkflow],
         activities=[
             collect_telemetry,
-            analyze_latency,
-            propose_fix,
-            apply_fix_simulation,
-            validate_improvement,
+            agent_step,
             generate_report,
         ],
     ):

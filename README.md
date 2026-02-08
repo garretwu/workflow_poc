@@ -39,6 +39,33 @@ python src/runner.py --scenario tokenizer_cpu_bottleneck
 - Console summary of the simulated diagnosis and improvements
 - JSON report written to `./reports/latency_report.json`
 
+## GUI
+
+Backend API (serves static assets if built):
+
+```bash
+pip install -r requirements.txt
+PYTHONPATH=src uvicorn gui.api:app --port 8080
+```
+
+Frontend (React + Vite):
+
+```bash
+cd gui
+npm install
+npm run dev
+```
+
+Build + deploy (single server):
+
+```bash
+cd gui
+npm install
+npm run build
+cd ..
+PYTHONPATH=src uvicorn gui.api:app --port 8080
+```
+
 ## Notes
 
 - All telemetry is mocked from `src/mock_data/` and perturbed per scenario.
